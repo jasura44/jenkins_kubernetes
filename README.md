@@ -1,3 +1,18 @@
+# You set the Jenkins URL in the web interface by navigating to:
+
+Manage Jenkins → Configure System → look for the section labeled Jenkins Location.
+
+In this section, set the Jenkins URL field to the address your agents (and users) should use to connect to the Jenkins controller. This should be an address resolvable from within your Kubernetes cluster, such as http://jenkins.<namespace>.svc.cluster.local:8080/ or the external URL if you are exposing Jenkins via an Ingress or NodePort.
+
+# Configure new cloud (Kubernetes) for Jenkins to connect to Minikube cloud
+Name: Kubernetes
+URL: https://127.0.0.1:50642 >> Use kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
+>>
+Namespace: jenkins
+Credentials: Add credentials through manager and add kubeconfig path location
+Jenkins URL: http://jenkins.jenkins.svc.cluster.local:8080
+Pod Label: Key: jenkins Value: agent
+
 # Set alias for kubectl commands
 Set-Alias k "minikube kubectl --"
 
@@ -6,6 +21,10 @@ Set up a Jenkins cluster on minikube
 
 # View cluster info
 kubectl config view --minify | grep server
+
+# View Jenkins server url
+kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
+>>
 
 # To encode certs to base64 to replace onto kubeconfig file (Since the cert content cannot be read from the jenkins namespace)
 powershell "[Convert]::ToBase64String([System.IO.File]::ReadAllBytes('ca.crt'))"
