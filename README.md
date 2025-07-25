@@ -1,112 +1,149 @@
-# You set the Jenkins URL in the web interface by navigating to:
+# Create jenkins namespace
+kubectl apply -f namespace.yaml
 
-Manage Jenkins → Configure System → look for the section labeled Jenkins Location.
+# Change current namespace to jenkins
+kubectl config set-context --current --namespace=jenkins
 
-In this section, set the Jenkins URL field to the address your agents (and users) should use to connect to the Jenkins controller. This should be an address resolvable from within your Kubernetes cluster, such as http://jenkins.<namespace>.svc.cluster.local:8080/ or the external URL if you are exposing Jenkins via an Ingress or NodePort.
+# Deploy PV
+# PV before PVC: PVCs request storage from PVs; if PVs don’t exist, PVCs remain unbound.
+kubectl apply -f volume.yaml
 
-# Configure new cloud (Kubernetes) for Jenkins to connect to Minikube cloud
-Name: Kubernetes
-URL: https://127.0.0.1:50642 >> Use kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
->>
-Namespace: jenkins
-Credentials: Add credentials through manager and add kubeconfig path location
-Jenkins URL: http://jenkins.jenkins.svc.cluster.local:8080
-Pod Label: Key: jenkins Value: agent
+# Deploy service accounts & role & role bindings
+kubectl apply -f serviceaccount.yaml
 
-# Set alias for kubectl commands
-Set-Alias k "minikube kubectl --"
+# Deploy deployment
+# Pods using a ServiceAccount require the ServiceAccount and its permissions to be created beforehand to operate properly without permission errors.
+kubectl apply -f deployment.yaml
 
-# jenkins_kubernetes
-Set up a Jenkins cluster on minikube
+# Change ownership of jenkins volume directory
+# This issue arises because when you use a hostPath volume in Minikube, the directory is often only writable by root, but Jenkins runs as a non-root user inside the container (commonly UID 1000)
+minikube ssh
+sudo chown -R 1000:1000 /mnt/jenkins-data
 
-# View cluster info
-kubectl config view --minify | grep server
+# Deploy service
+kubectl apply -f service.yaml
 
-# View Jenkins server url
-kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
->>
+# Deploy ingress
+kubectl apply -f ingress.yaml
 
-# To encode certs to base64 to replace onto kubeconfig file (Since the cert content cannot be read from the jenkins namespace)
-powershell "[Convert]::ToBase64String([System.IO.File]::ReadAllBytes('ca.crt'))"
-powershell "[Convert]::ToBase64String([System.IO.File]::ReadAllBytes('client.crt'))"
-powershell "[Convert]::ToBase64String([System.IO.File]::ReadAllBytes('client.key'))"
+# Get Jenkins admin password
+kubectl exec -it jenkins-65748b8b68-829tw -- cat /var/jenkins_home/secrets/initialAdminPassword
 
-# Pre-requisites
-1. Install minikube
-2. Install kubectl
-3. Install Helm (Package manager / Template engine) >> choco install kubernetes-helm
+# Get password
+d5f6c6d2fa0143b499bcc472edf620ce
 
-# Create a Jenkins service account
-Refer to jenkins_serviceaccount.yaml
+------------------------------------------------------------------------------------------------
+# Configuring on Agent on Jenkins UI
 
-# Create a cluster role with permissions across namespaces
-Refer to jenkins_namespace.yaml
+# Create and Configure the Agent Node
+- Go to Manage Jenkins > Manage Nodes and Clouds.
 
-# Create the role binding
-Refer to jenkins_clusterrole.yaml
+- Click New Node, enter the agent name as jenkins-agent
 
-# To check if kubernetes port is running
-netstat -an | findstr 50463
+- Choose Permanent Agent (fixed agent)
 
-# Create service account in Jenkins Namespace
-Refer to jenkins_rolebinding.yaml
+- Set no of executors to 3
 
-# (Optional) Create a Persistent Volume: You can create a persistent volume to store Jenkins data:
-kubectl apply -f jenkins_volume.yaml >> Set storage class name like jenkins-sc for both pv and pvc to bind
+- Set label to jenkins-agent
 
-# Option A Deploy jenkins with HELM
-helm repo add jenkins-stable https://charts.jenkins.io
-helm repo update
-helm install jenkins jenkins-stable/jenkins -n jenkins
+- In the agent configuration, set the Launch method to Launch agent by connecting it to the controller (JNLP).
 
-# Option B Deploy jenkins with Deployment.YAML
-kubectl apply -f jenkins-deployment.yaml -n jenkins
+- Set remote root directory to /home/jenkins/agent
 
-# Get your 'admin' user password
-kubectl exec -it jenkins-5688964df5-klg9z -n jenkins -- cat /var/jenkins_home/secrets/initialAdminPassword
-Password: 8810da916bc347efae4e3af7d309347b
+- Save the configuration. Jenkins will generate a secret for this agent (the equivalent of ${computer.jnlpmac}). Use that in the yaml file before deploying deployment.yaml
 
-# To run curl command inside pod
-kubectl exec -it jenkins-5688964df5-klg9z -n jenkins -- curl https://127.0.0.1:50463
+------------------------------------------------------------------------------------------------
 
-# Forward the Jenkins port
-kubectl port-forward svc/jenkins 8080:8080 --namespace jenkins
+# Installing on Kubernetes and Docker Plugin
 
-# Get minikube IP
-minikube ip
+- Go to Manage Jenkins > Plugins
+- Under available plugins, search for kubernetes
+- Check and install
 
-# Add line to your local /etc/hosts (Linux/Mac) or C:\Windows\System32\drivers\etc\hosts (Windows):
-127.0.0.1 jenkins.local
+- Go to Manage Jenkins > Plugins
+- Under available plugins, search for Docker
+- Check and install
+- Choose restart after installation
 
-# Access Jenkins
-kubectl get svc -n jenkins
+------------------------------------------------------------------------------------------------
 
-# Install kubernetes plugin
-Install kubernetes plugin under plugins in Jenkins
+# Create kubernetes cloud
 
-# Install docker plugin
-Install docker and docker pipeline plugin
+- Go to Manage Jenkins > Clouds
+- Create new cloud
+- Give it a name like Minikube and choose Kubernetes
+- Set Kubernetes URL to https://<minikube_ip>:8443
+- Create a copy of the kubeconfig file at C:\Users\jasur\.kube >> config2
+- Replace the following in config 2
+    - Change certificate-authority to certificate-authority-data and replace with encoded data by running:
+        - 
+        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\ca.crt")
+        $base64String = [Convert]::ToBase64String($bytes)
+        Write-Output $base64String
+    - Change client-certificate to client-certificate-data and replace with encoded data by running:
+        - 
+        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\profiles\minikube\client.crt")
+        $base64String = [Convert]::ToBase64String($bytes)
+        Write-Output $base64String
+    - Change client-key to client-key-data and replace with encoded data by running:
+        - 
+        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\profiles\minikube\client.key")
+        $base64String = [Convert]::ToBase64String($bytes)
+        Write-Output $base64String
+    - Server address to https://kubernetes.default.svc
+    - Set namespace to Jenkins and test connection
+    - Save and exit
 
-# Configure cloud
-Go to "Manage Jenkins" -> "Manage Nodes and Clouds" -> "Configure Clouds" and add a new Kubernetes cloud
-Add credentials > Secret file > Choose kubeconfig file (C:\Users\username\.minikube\config)
-Give a name > mykubeconfig
+------------------------------------------------------------------------------------------------
 
-# Docker as a plugin
-Go to Dashboard > Manage Jenkins > Credentials > System > Global credentials (unrestricted)
-Add credentials (Username, password and set an unique ID for reference in Jenkinsfile) -.e.g dockercredentailsid
+# Create credentials
 
-# Define agent templates
-Within the Jenkins configuration, define templates for the Kubernetes Pods that will be created as agents. This includes the Docker image, required environment variables, and other settings. 
+- Go to Manage Jenkins > Credentials > System Global Credentials
+- Add credentials
 
-# Check services and pods
-kubectl get service -n jenkins
-kubectl get pods -n jenkins
+    # For Docker
+    - Kind: Username with password
+    - Fill in username, password
+    - Set an ID like dockerid
+    - Save
 
-# Create a test pipeline
-Refer to Jenkinsfile
+    # For Kubeconfig
+    - Kind: Secret file
+    - Choose config2
+    - Set an ID like kubeconfig
+    - Save
 
-# Userful resources
-Use Jenkins Configuration as Code by specifying configScripts in your values.yaml file, see documentation: http://127.0.0.1:8080/configuration-as-code and examples: https://github.com/jenkinsci/configuration-as-code-plugin/tree/master/demos
+------------------------------------------------------------------------------------------------
+
+# Create pipeline
+
+
+
+
+
+------------------------------------------------------------------------------------------------
+
+## Utilities
+
+# To get pod status
+kubectl get pod <pod_name> -o wide
+
+# To describe pods
+kubectl describe pod <pod_name>
+
+# To increase minikube resources
+minikube stop
+minikube start --cpus=4 --memory=8192
+
+# To determine the OS of a running container within a pod
+kubectl exec --stdin --tty <pod_name> -- /bin/bash -c "cat /etc/os-release"
+
+# To inject secret and name
+kubectl exec -it jenkins-agent-6cb9d895d-5kltj -- curl -sO http://jenkins.com/jnlpJars/agent.jar
+kubectl exec -it jenkins-agent-6cb9d895d-5kltj -- curl -sO java -jar agent.jar -url http://jenkins.com/ -secret bf5fa486407ee0f0341bd56d633c415b4f9310ae8cfdf7d08cc96a9df03f677f -name "jenkins-agent" -webSocket -workDir "/var/jenkins"
+
+
+
+
 
 
