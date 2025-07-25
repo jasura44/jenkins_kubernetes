@@ -117,8 +117,22 @@ d5f6c6d2fa0143b499bcc472edf620ce
 
 # Create pipeline
 
-
-
+- Go to Jenkins Home
+- Select New Item
+- Set a name like Deploy-NodeJS-To-Minikube
+- Select pipeline
+- Create a description like This pipeline build a Node JS docker image, pushes to DockerHub and deploys the image into Minikube namespace called backend.
+- Select discard old builds
+    - Days to keep builds = 1
+    - Max # of builds to keep = 1
+- Select do not allow concurrent builds
+- Select GitHub Project and state the project name like https://github.com/jasura44/nodejs_minikube.git
+- Under Pipeline, choose Pipeline script from SCM
+    - SCM = GIT
+    - Repository URL = https://github.com/jasura44/nodejs_minikube.git
+    - Branch to build = master
+    - Scrip Path = Jenkinsfile
+- Save and exit
 
 
 ------------------------------------------------------------------------------------------------
