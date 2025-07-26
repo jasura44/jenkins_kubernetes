@@ -1,3 +1,9 @@
+# Setting minikube timezone to Singapore time
+minikube ssh
+sudo ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime
+sudo dpkg-reconfigure -f noninteractive tzdata   # For Debian/Ubuntu-based nodes; ignore if not present
+date
+
 # Create jenkins namespace
 kubectl apply -f namespace.yaml
 
@@ -51,6 +57,15 @@ d5f6c6d2fa0143b499bcc472edf620ce
 - Set remote root directory to /home/jenkins/agent
 
 - Save the configuration. Jenkins will generate a secret for this agent (the equivalent of ${computer.jnlpmac}). Use that in the yaml file before deploying deployment.yaml
+
+- Save the secret into Kubernetes Secrets
+    - Go to Manage Jenkins > Nodes
+    - Go to the Nodes > Status 
+    - Get the secret key
+    - Encode secret key with Base 64
+        - [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("bf5fa486407ee0f0341bd56d633c415b4f9310ae8cfdf7d08cc96a9df03f677f"))
+        - kubectl apply -f agent-secret.yaml
+        - Inject secret into agent.yaml
 
 ------------------------------------------------------------------------------------------------
 
