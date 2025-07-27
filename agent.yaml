@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins-agent
+  namespace: jenkins
+  labels:
+    app: jenkins-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins-agent
+  template:
+    metadata:
+      labels:
+        app: jenkins-agent
+    spec:
+      serviceAccountName: jenkins-agent-sa
+      containers:
+      - name: jnlp
+        image: jenkins/inbound-agent:latest  # or a custom image if needed
+        env:
+        - name: JENKINS_URL
+          value: "http://jenkins.jenkins.svc.cluster.local:8080"
+        - name: JENKINS_AGENT_NAME
+          value: "jenkins-agent" 
+        - name: JENKINS_AGENT_WORKDIR
+          value: "/home/jenkins/agent"
+        - name: JENKINS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jenkins-agent-secret
+              key: secret-key
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+      - name: docker
+        image: docker:latest
+        command:
+        - cat
+        tty: true
+        volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+
+      - name: kubectl
+        image: bitnami/kubectl:latest
+        command:
+        - cat
+        tty: true
+
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+
+      restartPolicy: Always
