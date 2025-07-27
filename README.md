@@ -4,6 +4,8 @@ sudo ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime
 sudo dpkg-reconfigure -f noninteractive tzdata   # For Debian/Ubuntu-based nodes; ignore if not present
 date
 
+minikube addons enable ingress
+
 # Create jenkins namespace
 kubectl apply -f namespace.yaml
 
@@ -33,12 +35,57 @@ kubectl apply -f service.yaml
 kubectl apply -f ingress.yaml
 
 # Get Jenkins admin password
-kubectl exec -it jenkins-65748b8b68-829tw -- cat /var/jenkins_home/secrets/initialAdminPassword
+kubectl exec -it jenkins-65748b8b68-lm6dv -- cat /var/jenkins_home/secrets/initialAdminPassword
 
 # Get password
 d5f6c6d2fa0143b499bcc472edf620ce
 
+# Login to URL
+minikube tunnel
+
+Login to jenkins.com
+Set username, password and email address and save
+
 ------------------------------------------------------------------------------------------------
+
+# Create custom kubeconfig file with base64 encoding
+
+- Create a copy of the kubeconfig file at C:\Users\jasur\.kube and save it as config2
+- Replace the following in config2
+    - Server address to https://kubernetes.default.svc
+    - Change certificate-authority to certificate-authority-data and replace with encoded data by running:
+        - 
+        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\ca.crt")
+        $base64String = [Convert]::ToBase64String($bytes)
+        Write-Output $base64String
+
+    - Change client-certificate to client-certificate-data and replace with encoded data by running:
+        - 
+        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\profiles\minikube\client.crt")
+        $base64String = [Convert]::ToBase64String($bytes)
+        Write-Output $base64String
+
+    - Change client-key to client-key-data and replace with encoded data by running:
+        - 
+        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\profiles\minikube\client.key")
+        $base64String = [Convert]::ToBase64String($bytes)
+        Write-Output $base64String
+
+------------------------------------------------------------------------------------------------
+
+# Installing on Kubernetes and Docker Plugin
+
+- Go to Manage Jenkins > Plugins
+- Under available plugins, search for kubernetes
+- Check and install
+
+- Go to Manage Jenkins > Plugins
+- Under available plugins, search for Docker
+- Check and install
+- Choose restart after installation
+
+------------------------------------------------------------------------------------------------
+
 # Configuring on Agent on Jenkins UI
 
 # Create and Configure the Agent Node
@@ -63,22 +110,9 @@ d5f6c6d2fa0143b499bcc472edf620ce
     - Go to the Nodes > Status 
     - Get the secret key
     - Encode secret key with Base 64
-        - [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("bf5fa486407ee0f0341bd56d633c415b4f9310ae8cfdf7d08cc96a9df03f677f"))
-        - kubectl apply -f agent-secret.yaml
+        - [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("c9e2da59704b9903423b8bfea6c7c2399abf5e38e1711f79e90cf0f23ccb92e5"))
         - Inject secret into agent.yaml
-
-------------------------------------------------------------------------------------------------
-
-# Installing on Kubernetes and Docker Plugin
-
-- Go to Manage Jenkins > Plugins
-- Under available plugins, search for kubernetes
-- Check and install
-
-- Go to Manage Jenkins > Plugins
-- Under available plugins, search for Docker
-- Check and install
-- Choose restart after installation
+        - kubectl apply -f agent-secret.yaml
 
 ------------------------------------------------------------------------------------------------
 
@@ -87,27 +121,9 @@ d5f6c6d2fa0143b499bcc472edf620ce
 - Go to Manage Jenkins > Clouds
 - Create new cloud
 - Give it a name like Minikube and choose Kubernetes
-- Set Kubernetes URL to https://<minikube_ip>:8443
-- Create a copy of the kubeconfig file at C:\Users\jasur\.kube >> config2
-- Replace the following in config 2
-    - Change certificate-authority to certificate-authority-data and replace with encoded data by running:
-        - 
-        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\ca.crt")
-        $base64String = [Convert]::ToBase64String($bytes)
-        Write-Output $base64String
-    - Change client-certificate to client-certificate-data and replace with encoded data by running:
-        - 
-        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\profiles\minikube\client.crt")
-        $base64String = [Convert]::ToBase64String($bytes)
-        Write-Output $base64String
-    - Change client-key to client-key-data and replace with encoded data by running:
-        - 
-        $bytes = [System.IO.File]::ReadAllBytes("C:\Users\jasur\.minikube\profiles\minikube\client.key")
-        $base64String = [Convert]::ToBase64String($bytes)
-        Write-Output $base64String
-    - Server address to https://kubernetes.default.svc
-    - Set namespace to Jenkins and test connection
-    - Save and exit
+- Set Kubernetes URL to https://<minikube_ip>:8443 or https://kubernetes.default.svc
+- Set namespace to Jenkins and test connection
+- Save and exit
 
 ------------------------------------------------------------------------------------------------
 
