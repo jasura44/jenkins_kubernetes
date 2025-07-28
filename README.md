@@ -1,4 +1,5 @@
 # Setting minikube timezone to Singapore time
+minikube start --driver=docker
 minikube ssh
 sudo ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime
 sudo dpkg-reconfigure -f noninteractive tzdata   # For Debian/Ubuntu-based nodes; ignore if not present
@@ -12,6 +13,9 @@ kubectl apply -f namespace.yaml
 # Change current namespace to jenkins
 kubectl config set-context --current --namespace=jenkins
 
+# To view container logs inside a pod
+kubectl logs jenkins-agent-1xpj8 -c kubectl -n jenkins
+
 # Deploy PV
 # PV before PVC: PVCs request storage from PVs; if PVs don’t exist, PVCs remain unbound.
 kubectl apply -f volume.yaml
@@ -22,7 +26,7 @@ kubectl apply -f serviceaccount.yaml
 # Deploy deployment
 # Pods using a ServiceAccount require the ServiceAccount and its permissions to be created beforehand to operate properly without permission errors.
 
-kubectl get serviceaccount jenkins-agent-sa -o jsonpath='{.secrets[0].name}'
+kubectl get serviceaccount jenkins-service-account -o jsonpath='{.secrets[0].name}'
 
 kubectl apply -f deployment.yaml
 
@@ -198,6 +202,9 @@ kubectl exec --stdin --tty <pod_name> -- /bin/bash -c "cat /etc/os-release"
 # To inject secret and name
 kubectl exec -it jenkins-agent-6cb9d895d-5kltj -- curl -sO http://jenkins.com/jnlpJars/agent.jar
 kubectl exec -it jenkins-agent-6cb9d895d-5kltj -- curl -sO java -jar agent.jar -url http://jenkins.com/ -secret bf5fa486407ee0f0341bd56d633c415b4f9310ae8cfdf7d08cc96a9df03f677f -name "jenkins-agent" -webSocket -workDir "/var/jenkins"
+
+# To check if kube system is running
+kubectl get pods -n kube-system
 
 
 
