@@ -21,6 +21,9 @@ kubectl apply -f serviceaccount.yaml
 
 # Deploy deployment
 # Pods using a ServiceAccount require the ServiceAccount and its permissions to be created beforehand to operate properly without permission errors.
+
+kubectl get serviceaccount jenkins-agent-sa -o jsonpath='{.secrets[0].name}'
+
 kubectl apply -f deployment.yaml
 
 # Change ownership of jenkins volume directory
@@ -80,7 +83,7 @@ Set username, password and email address and save
 - Check and install
 
 - Go to Manage Jenkins > Plugins
-- Under available plugins, search for Docker
+- Under available plugins, search for Docker and Docker Pipeline
 - Check and install
 - Choose restart after installation
 
@@ -172,6 +175,15 @@ Set username, password and email address and save
 
 # To get pod status
 kubectl get pod <pod_name> -o wide
+
+# To get pods with labels
+kubectl get pods --show-labels
+
+# To watch all pods
+kubectl get -A pods --watch
+
+# To show kubernetes events
+kubectl get events --watch
 
 # To describe pods
 kubectl describe pod <pod_name>
