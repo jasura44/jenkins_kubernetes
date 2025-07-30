@@ -13,9 +13,6 @@ kubectl apply -f namespace.yaml
 # Change current namespace to jenkins
 kubectl config set-context --current --namespace=jenkins
 
-# To view container logs inside a pod
-kubectl logs jenkins-agent-1xpj8 -c kubectl -n jenkins
-
 # Deploy PV
 # PV before PVC: PVCs request storage from PVs; if PVs don’t exist, PVCs remain unbound.
 kubectl apply -f volume.yaml
@@ -33,7 +30,7 @@ kubectl apply -f deployment.yaml
 # Change ownership of jenkins volume directory
 # This issue arises because when you use a hostPath volume in Minikube, the directory is often only writable by root, but Jenkins runs as a non-root user inside the container (commonly UID 1000)
 minikube ssh
-sudo chown -R 1000:1000 /mnt/jenkins-data
+sudo chown -R 1000:1000 /data/jenkins-volume/
 
 # Deploy service
 kubectl apply -f service.yaml
@@ -42,16 +39,20 @@ kubectl apply -f service.yaml
 kubectl apply -f ingress.yaml
 
 # Get Jenkins admin password
-kubectl exec -it jenkins-65748b8b68-lm6dv -- cat /var/jenkins_home/secrets/initialAdminPassword
+kubectl get pods
+kubectl exec -it jenkins-77f78dc47f-xzzq2 -- cat /var/jenkins_home/secrets/initialAdminPassword
 
 # Get password
-d5f6c6d2fa0143b499bcc472edf620ce
+29db579b19eb4cfb8792e15219716e8a
 
 # Login to URL
 minikube tunnel
 
-Login to jenkins.com
-Set username, password and email address and save
+# Login to console
+- Add jenkins.com domain into /etc/hosts
+- Login to jenkins.com 
+- Install recommended plugins
+- Set username, password and email address and save
 
 ------------------------------------------------------------------------------------------------
 
@@ -93,7 +94,66 @@ Set username, password and email address and save
 
 ------------------------------------------------------------------------------------------------
 
-# Configuring on Agent on Jenkins UI
+# Create kubernetes cloud
+
+- Go to Manage Jenkins > Clouds
+- Create new cloud
+- Give it a name like Kubernetes and choose Kubernetes
+- Set Kubernetes URL to https://<minikube_ip>:8443 or https://kubernetes.default.svc
+- Set namespace to Jenkins and test connection
+- Change pod label: Key: jenkins, Value: agent
+- Optional
+    - Add credentials > Kind (Secret) > Choose Kubeconfig file > Set ID as kubeconfig 
+- Click on Pod Templates and Add Pod Template
+    - Name: jenkins-agent
+    - Namespace: jenkins
+    - Labels: jenkins-agent
+    - Usage: Only build jobs with labels expressions matching this node
+    - Name of container that will run the Jenkins agent: jnlp ??
+    - Add container 1
+        - Name: jnlp
+        - Docker image: jenkins/inbound-agent:latest
+        - Always pull image: Check
+        - Working directory: /home/jenkins/agent
+     - Add container 1
+        - Name: docker
+        - Docker image: docker:20-dind
+        - Always pull image: Check
+        - Working directory: /home/jenkins/agent   
+    - Add container 1
+        - Name: kubectl
+        - Docker image: bitnami/kubectl:latest
+        - Always pull image: Check
+        - Working directory: /home/jenkins/agent
+    - Add Volume Mount for Docker
+        - Add Host Path Volume
+        - Host Path: /var/run/docker.sock
+        - Mount Path: /var/run/docker.sock   
+    - Serviceaccount: jenkins-service-account
+    - Click create
+
+------------------------------------------------------------------------------------------------
+
+# Create credentials
+
+- Go to Manage Jenkins > Credentials > System Global Credentials
+- Add credentials
+
+    # For Docker
+    - Kind: Username with password
+    - Fill in username, password
+    - Set an ID like dockerhubid
+    - Save
+
+    # For Kubeconfig
+    - Kind: Secret file
+    - Choose config2
+    - Set an ID like kubeconfig
+    - Save
+
+------------------------------------------------------------------------------------------------
+
+# Configuring on Agent (Manual Approach)
 
 # Create and Configure the Agent Node
 - Go to Manage Jenkins > Manage Nodes and Clouds.
@@ -123,36 +183,6 @@ Set username, password and email address and save
 
 ------------------------------------------------------------------------------------------------
 
-# Create kubernetes cloud
-
-- Go to Manage Jenkins > Clouds
-- Create new cloud
-- Give it a name like Minikube and choose Kubernetes
-- Set Kubernetes URL to https://<minikube_ip>:8443 or https://kubernetes.default.svc
-- Set namespace to Jenkins and test connection
-- Save and exit
-
-------------------------------------------------------------------------------------------------
-
-# Create credentials
-
-- Go to Manage Jenkins > Credentials > System Global Credentials
-- Add credentials
-
-    # For Docker
-    - Kind: Username with password
-    - Fill in username, password
-    - Set an ID like dockerid
-    - Save
-
-    # For Kubeconfig
-    - Kind: Secret file
-    - Choose config2
-    - Set an ID like kubeconfig
-    - Save
-
-------------------------------------------------------------------------------------------------
-
 # Create pipeline
 
 - Go to Jenkins Home
@@ -163,8 +193,7 @@ Set username, password and email address and save
 - Select discard old builds
     - Days to keep builds = 1
     - Max # of builds to keep = 1
-- Select do not allow concurrent builds
-- Select GitHub Project and state the project name like https://github.com/jasura44/nodejs_minikube.git
+- Select do not allow concurrent builds and check on abort previous builds
 - Under Pipeline, choose Pipeline script from SCM
     - SCM = GIT
     - Repository URL = https://github.com/jasura44/nodejs_minikube.git
@@ -172,10 +201,12 @@ Set username, password and email address and save
     - Scrip Path = Jenkinsfile
 - Save and exit
 
-
 ------------------------------------------------------------------------------------------------
 
 ## Utilities
+
+# To view container logs inside a pod
+kubectl logs jenkins-agent-1xpj8 -c kubectl -n jenkins
 
 # To get pod status
 kubectl get pod <pod_name> -o wide
