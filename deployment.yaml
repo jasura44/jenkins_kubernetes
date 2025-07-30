@@ -15,9 +15,13 @@ spec:
       labels:
         app: jenkins
     spec:
+      serviceAccountName: jenkins-service-account
       containers:
       - name: jenkins
         image: jenkins/jenkins:lts
+        env: 
+        - name: JENKINS_OPTS
+          value: "-Dorg.jenkinsci.plugins.durabletask.BourneShellScript.LAUNCH_DIAGNOSTICS=true"
         ports:
         - containerPort: 8080
         volumeMounts:
