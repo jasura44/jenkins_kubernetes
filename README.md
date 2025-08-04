@@ -208,6 +208,13 @@ minikube tunnel
 # To view container logs inside a pod
 kubectl logs jenkins-agent-1xpj8 -c kubectl -n jenkins
 
+# To go into kubectl container inside pod and run shell commands
+kubectl exec -it -c kubectl jenkins-agent-lk1s4 -- sh
+kubectl get pods
+
+# To view jenkins agent logs
+kubectl exec -it -c docker jenkins-agent-pdhpw -- sh
+
 # To get pod status
 kubectl get pod <pod_name> -o wide
 
@@ -236,6 +243,9 @@ kubectl exec -it jenkins-agent-6cb9d895d-5kltj -- curl -sO java -jar agent.jar -
 
 # To check if kube system is running
 kubectl get pods -n kube-system
+
+# To get verbose logs
+kubectl version --v=9
 
 
 
